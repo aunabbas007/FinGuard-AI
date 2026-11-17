@@ -1,4 +1,4 @@
-"""Fair, reproducible comparison of 36-feature and graph-enhanced fraud models.
+"""Fair, reproducible comparison of baseline and graph-enhanced fraud models.
 
 Run from the repository root after generating V2 data and both feature matrices:
     python src/models/evaluate_models.py
@@ -97,16 +97,13 @@ def load_aligned_datasets():
 
     X_base = base.drop(columns=["transaction_id", "timestamp", "is_fraud"])
     X_graph = enhanced.drop(columns=["transaction_id", "timestamp", "is_fraud"])
-    if not all(pd.api.types.is_numeric_dtype(dtype) for dtype in X_base.dtypes):
-        raise TypeError("Baseline features must all be numeric.")
-    if not all(pd.api.types.is_numeric_dtype(dtype) for dtype in X_graph.dtypes):
-        raise TypeError("Graph features must all be numeric.")
-    if not np.isfinite(X_base.to_numpy(dtype=float)).all():
-        raise ValueError("Baseline features contain NaN or infinite values.")
-    if not np.isfinite(X_graph.to_numpy(dtype=float)).all():
-        raise ValueError("Graph features contain NaN or infinite values.")
+    for name, matrix in (("baseline", X_base), ("graph", X_graph)):
+        if not all(pd.api.types.is_numeric_dtype(dtype) for dtype in matrix.dtypes):
+            raise TypeError(f"{name} features must all be numeric.")
+        if not np.isfinite(matrix.to_numpy(dtype=float)).all():
+            raise ValueError(f"{name} features contain NaN or infinite values.")
 
-    return X_base, X_graph, y_base, order["transaction_id"].reset_index(drop=True)
+    return X_base, X_graph, y_base
 
 
 def chronological_indices(n_rows: int):
@@ -175,15 +172,14 @@ def evaluate_one(name, model, X_train, y_train, X_val, y_val, X_test, y_test):
                 y_test, pred, labels=[0, 1]
             ).tolist(),
         },
-        "test_predictions": pred,
     }
 
 
 def main():
-    X_base, X_graph, y, transaction_ids = load_aligned_datasets()
+    X_base, X_graph, y = load_aligned_datasets()
     train_idx, val_idx, test_idx = chronological_indices(len(y))
-
     y_train, y_val, y_test = y.iloc[train_idx], y.iloc[val_idx], y.iloc[test_idx]
+
     for name, labels in (("train", y_train), ("validation", y_val), ("test", y_test)):
         if labels.nunique() != 2:
             raise ValueError(f"{name} split must contain both fraud and normal examples.")
@@ -197,24 +193,22 @@ def main():
         n_estimators=300, class_weight="balanced", max_depth=10,
         min_samples_leaf=2, random_state=RANDOM_STATE, n_jobs=-1,
     )
-    common = (
-        X_base.iloc[train_idx], y_train,
-        X_base.iloc[val_idx], y_val,
+    baseline_result = evaluate_one(
+        "Random Forest (baseline)", RandomForestClassifier(**params),
+        X_base.iloc[train_idx], y_train, X_base.iloc[val_idx], y_val,
         X_base.iloc[test_idx], y_test,
     )
-    baseline_result = evaluate_one(
-        "Random Forest (baseline)", RandomForestClassifier(**params), *common
-    )
     graph_result = evaluate_one(
-        "Random Forest (graph-enhanced)",
-        RandomForestClassifier(**params),
-        X_graph.iloc[train_idx], y_train,
-        X_graph.iloc[val_idx], y_val,
+        "Random Forest (graph-enhanced)", RandomForestClassifier(**params),
+        X_graph.iloc[train_idx], y_train, X_graph.iloc[val_idx], y_val,
         X_graph.iloc[test_idx], y_test,
     )
 
     summary = {}
-    for result in (baseline_result, graph_result):
+    for result, feature_count in (
+        (baseline_result, X_base.shape[1]),
+        (graph_result, X_graph.shape[1]),
+    ):
         print(f"\n{result['name']}")
         print(f"Validation PR-AUC: {result['validation']['pr_auc']:.4f}")
         print(f"Test PR-AUC: {result['test']['pr_auc']:.4f}")
@@ -223,18 +217,36 @@ def main():
         print("Test fraud metrics:", result["test"]["classification_report"]["fraud"])
         print("Test confusion matrix [ [TN, FP], [FN, TP] ]:", result["test"]["confusion_matrix"])
         summary[result["name"]] = {
-            "feature_count": int(
-                X_base.shape[1] if result is baseline_result else X_graph.shape[1]
-            ),
+            "feature_count": int(feature_count),
             "threshold": result["threshold"],
             "validation": result["validation"],
             "test": result["test"],
         }
 
-    # Save reproducible artifacts for both experiments, not just the winner.
     MODELS.mkdir(parents=True, exist_ok=True)
     joblib.dump(baseline_result["model"], MODELS / "fraud_detection_model.joblib")
     joblib.dump(graph_result["model"], MODELS / "fraud_detection_graph_model.joblib")
+
+    # Keep the existing risk-scoring module compatible with the baseline artifact.
+    for result, config_name in (
+        (baseline_result, "thresholds.json"),
+        (graph_result, "graph_thresholds.json"),
+    ):
+        config = {
+            "model_name": result["name"],
+            "threshold": result["threshold"],
+            "threshold_selection": "maximum validation F1",
+            "validation_pr_auc": result["validation"]["pr_auc"],
+            "validation_roc_auc": result["validation"]["roc_auc"],
+            "validation_f1": result["validation"]["f1_at_selected_threshold"],
+            "test_pr_auc": result["test"]["pr_auc"],
+            "test_roc_auc": result["test"]["roc_auc"],
+            "feature_count": result["model"].n_features_in_,
+            "feature_names": list(result["model"].feature_names_in_),
+            "note": "Synthetic dataset; scores are not calibrated real-world fraud probabilities.",
+        }
+        (MODELS / config_name).write_text(json.dumps(config, indent=2), encoding="utf-8")
+
     (MODELS / "ml_evaluation.json").write_text(
         json.dumps({
             "dataset": "synthetic FinGuard AI V2",
@@ -260,16 +272,14 @@ def main():
         encoding="utf-8",
     )
 
-    # Graph feature importances are useful for diagnostic prioritisation, not causal claims.
     importance = pd.DataFrame({
         "feature": X_graph.columns,
         "importance": graph_result["model"].feature_importances_,
     }).sort_values("importance", ascending=False)
     importance.to_csv(DATA / "graph_feature_importance.csv", index=False)
-    print("\nSaved: models/ml_evaluation.json")
-    print("Saved: models/fraud_detection_model.joblib")
-    print("Saved: models/fraud_detection_graph_model.joblib")
-    print("Saved: data/processed/v2/graph_feature_importance.csv")
+
+    print("\nSaved both model artifacts, both threshold configurations, and models/ml_evaluation.json.")
+    print("Saved data/processed/v2/graph_feature_importance.csv")
 
 
 if __name__ == "__main__":
