@@ -1,0 +1,24 @@
+services:
+  api:
+    build: .
+    container_name: finguard-api
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8000}:8000"
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      DATABASE_URL: ${DATABASE_URL:-sqlite:////app/data/finguard.db}
+      MODEL_PATH: /app/models/fraud_detection_model.joblib
+      THRESHOLD_PATH: /app/models/thresholds.json
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8000}
+    volumes:
+      - ./models:/app/models:ro
+      - finguard_data:/app/data
+    healthcheck:
+      test: ["CMD","python","-c","import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+volumes:
+  finguard_data:
