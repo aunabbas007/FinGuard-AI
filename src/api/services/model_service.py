@@ -40,6 +40,12 @@ class FraudModelService:
             self._model, self._threshold = model, threshold
 
     @property
+    def threshold(self):
+        """Return the configured probability threshold after loading artifacts."""
+        self._load()
+        return self._threshold
+
+    @property
     def feature_names(self):
         self._load()
         names = getattr(self._model, "feature_names_in_", None)
