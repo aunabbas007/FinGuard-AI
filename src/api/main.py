@@ -10,6 +10,7 @@ from src.api.routes.health import router as health_router
 from src.api.routes.demo import router as demo_router
 from src.api.routes.model import router as model_router
 from src.api.routes.transactions import router as transactions_router
+from src.api.routes.investigation import router as investigation_router
 
 settings = get_settings()
 
@@ -24,6 +25,7 @@ app.include_router(health_router)
 app.include_router(model_router)
 app.include_router(demo_router)
 app.include_router(transactions_router)
+app.include_router(investigation_router)
 
 @app.get("/api/v1")
 def api_root():
