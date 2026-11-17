@@ -1,0 +1,8 @@
+{
+    "model_name": "Random Forest",
+    "threshold": 0.4793192798124298,
+    "validation_pr_auc": 0.31619167101580364,
+    "validation_f1": 0.4150943395730865,
+    "test_pr_auc": 0.34862332860601264,
+    "test_roc_auc": 0.8950566893424037
+}

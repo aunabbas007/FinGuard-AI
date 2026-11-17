@@ -1,0 +1,9 @@
+{
+    "threshold": 0.593544885838287,
+    "validation_pr_auc": 0.3369416515897997,
+    "validation_roc_auc": 0.9516631894793596,
+    "validation_f1": 0.46808510633571754,
+    "test_pr_auc": 0.39175593657292074,
+    "test_roc_auc": 0.9084807256235827,
+    "feature_count": 44
+}
