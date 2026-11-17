@@ -12,7 +12,6 @@ services:
       THRESHOLD_PATH: /app/models/thresholds.json
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8000}
     volumes:
-      - ./models:/app/models:ro
       - finguard_data:/app/data
     healthcheck:
       test: ["CMD","python","-c","import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)"]
