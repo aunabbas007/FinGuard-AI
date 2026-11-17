@@ -7,12 +7,12 @@ services:
       - "${PORT:-8000}:8000"
     environment:
       ENVIRONMENT: ${ENVIRONMENT:-production}
-      DATABASE_URL: ${DATABASE_URL:-sqlite:////app/data/finguard.db}
+      DATABASE_URL: sqlite:////var/lib/finguard/finguard.db
       MODEL_PATH: /app/models/fraud_detection_model.joblib
       THRESHOLD_PATH: /app/models/thresholds.json
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8000}
     volumes:
-      - finguard_data:/app/data
+      - finguard_data:/var/lib/finguard
     healthcheck:
       test: ["CMD","python","-c","import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)"]
       interval: 30s
