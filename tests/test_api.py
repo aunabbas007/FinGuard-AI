@@ -35,3 +35,13 @@ def test_transaction_list_is_empty_or_paginated(client):
     body = response.json()
     assert "items" in body and "total" in body
     assert body["limit"] == 5
+
+
+def test_investigation_endpoint_reports_missing_provider_key(client, monkeypatch):
+    monkeypatch.delenv("GROQ_API_KEY", raising=False)
+    response = client.post(
+        "/api/v1/investigation/chat",
+        json={"message": "Explain common account takeover indicators."},
+    )
+    assert response.status_code == 503
+    assert "GROQ_API_KEY" in response.json()["detail"]
