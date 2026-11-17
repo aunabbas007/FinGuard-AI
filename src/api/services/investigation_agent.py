@@ -70,7 +70,7 @@ def investigate(question: str):
     api_key = os.getenv("GROQ_API_KEY", "").strip()
     if not api_key:
         raise RuntimeError("The AI investigation assistant is not configured. Add GROQ_API_KEY to the Render service environment.")
-    model_name = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+    model_name = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
     agent = _build_agent(api_key, model_name)
     result = agent.invoke({"messages": [{"role": "user", "content": question}]})
     messages = result.get("messages", [])
