@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0b1220"><title>FinGuard AI — Fraud Intelligence</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <a class="brand" href="/"><span class="brand-mark">F</span><span>FinGuard<span class="muted">.AI</span></span></a>
+    <div class="side-label">WORKSPACE</div>
+    <a class="nav active" href="#overview"><span>◫</span> Overview</a>
+    <a class="nav" href="#analyze"><span>⌁</span> Analyze transaction</a>
+    <a class="nav" href="#activity"><span>▤</span> Transaction history</a>
+    <div class="side-bottom"><span class="pulse"></span><span id="api-status">Connecting to API</span><small>DEMO ENVIRONMENT</small></div>
+  </aside>
+  <main class="main">
+    <header class="topbar"><div><div class="eyebrow">FRAUD INTELLIGENCE PLATFORM</div><h1>Overview</h1></div><div class="top-right"><span class="env-tag">SYNTHETIC DATA</span><div class="avatar">FA</div></div></header>
+    <section class="notice"><span class="notice-icon">i</span><p><strong>Research & portfolio demo.</strong> Scores are produced by a model trained on synthetic transactions. They are not calibrated probabilities and must not be used for real financial decisions.</p></section>
+    <section class="metrics" id="overview">
+      <article class="metric"><div class="metric-label">TRANSACTIONS ANALYZED</div><div class="metric-value" id="total-count">—</div><div class="metric-foot">Stored in local workspace</div></article>
+      <article class="metric"><div class="metric-label">FLAGGED FOR REVIEW</div><div class="metric-value amber" id="flagged-count">—</div><div class="metric-foot">Model threshold exceeded</div></article>
+      <article class="metric"><div class="metric-label">MODEL STATUS</div><div class="metric-value status-value" id="model-status">—</div><div class="metric-foot" id="model-foot">Checking artifacts</div></article>
+    </section>
+    <section class="panel analyze-panel" id="analyze">
+      <div class="panel-head"><div><div class="eyebrow">RISK ASSESSMENT</div><h2>Analyze a transaction</h2><p>Enter transaction metadata and the model's numeric feature values.</p></div><span class="step-tag">01 / SCORE</span></div>
+      <form id="score-form">
+        <div class="form-grid meta-grid">
+          <label>Transaction reference<input name="external_id" placeholder="TXN-2026-001"></label>
+          <label>Amount<input name="amount" type="number" min="0.01" step="0.01" value="2500" required></label>
+          <label>Currency<select name="currency"><option>INR</option><option>USD</option><option>AED</option><option>GBP</option><option>SGD</option></select></label>
+          <label>Channel<select name="channel"><option>mobile</option><option>web</option><option>ATM</option><option>POS</option></select></label>
+          <label>Sender account<input name="sender_account" placeholder="ACC-1001" required></label>
+          <label>Receiver account<input name="receiver_account" placeholder="ACC-2042" required></label>
+        </div>
+        <div class="feature-head"><div><h3>Model feature vector</h3><p id="feature-help">Loading the exact feature schema from the trained model…</p></div><div><button type="button" class="secondary-btn" id="demo-btn">Load random demo case</button> <button type="button" class="text-button" id="zero-btn">Reset values</button></div></div>
+        <div id="feature-fields" class="feature-grid"><div class="skeleton">Loading feature schema…</div></div>
+        <div class="form-actions"><span id="form-message" class="form-message">All model features must match the trained model schema.</span><button class="primary-btn" id="score-btn" type="submit">Run fraud assessment <span>→</span></button></div>
+      </form>
+      <div id="result" class="result hidden" aria-live="polite"></div>
+    </section>
+    <section class="panel" id="activity">
+      <div class="panel-head table-head"><div><div class="eyebrow">AUDIT TRAIL</div><h2>Recent transactions</h2><p>Every submitted assessment is saved to the local database.</p></div><button class="secondary-btn" id="refresh-btn">↻ Refresh</button></div>
+      <div class="table-wrap"><table><thead><tr><th>REFERENCE</th><th>AMOUNT</th><th>RISK SCORE</th><th>RISK LEVEL</th><th>DECISION</th><th>TIME</th></tr></thead><tbody id="transactions-body"><tr><td colspan="6" class="empty">No assessments yet. Score your first transaction above.</td></tr></tbody></table></div>
+    </section>
+    <footer>FINGUARD AI <span>•</span> Synthetic fraud analytics demo <span>•</span> Human review required</footer>
+  </main>
+</div>
+<script src="/app.js"></script>
+</body></html>
