@@ -7,6 +7,7 @@ from src.api.config import get_settings
 from src.api.db import Base, engine
 from src.api import models  # noqa: F401
 from src.api.routes.health import router as health_router
+from src.api.routes.demo import router as demo_router
 from src.api.routes.model import router as model_router
 from src.api.routes.transactions import router as transactions_router
 
@@ -21,6 +22,7 @@ app = FastAPI(title=settings.app_name, description="Synthetic-data fraud detecti
 app.add_middleware(CORSMiddleware, allow_origins=settings.allowed_origins, allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 app.include_router(health_router)
 app.include_router(model_router)
+app.include_router(demo_router)
 app.include_router(transactions_router)
 
 @app.get("/api/v1")
