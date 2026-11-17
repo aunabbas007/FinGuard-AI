@@ -54,6 +54,8 @@ $("score-form").addEventListener("submit",async event=>{
   finally{$("score-btn").disabled=false;$("score-btn").innerHTML='Run fraud assessment <span>→</span>';}
 });
 $("demo-btn").addEventListener("click",async()=>{
+  const button=$("demo-btn");
+  button.disabled=true;
   $("form-message").textContent="Loading a random synthetic transaction…";
   try{
     const sample=await api("/api/v1/demo/sample");
@@ -66,8 +68,27 @@ $("demo-btn").addEventListener("click",async()=>{
       const input=document.querySelector(`#feature-fields input[name="feature_${i}"]`);
       if(input) input.value=sample.features[name];
     });
-    $("form-message").textContent=sample.dataset_notice;
+    $("form-message").textContent="Synthetic case loaded. Running the fraud assessment…";
+    form.requestSubmit();
   }catch(error){$("form-message").textContent=error.message;}
+  finally{button.disabled=false;}
+});
+$("investigation-form").addEventListener("submit",async event=>{
+  event.preventDefault();
+  const button=$("investigation-submit");
+  button.disabled=true;
+  button.textContent="Investigating…";
+  $("investigation-status").textContent="Retrieving relevant guidance and consulting the agent…";
+  try{
+    const result=await api("/api/v1/investigation/chat",{method:"POST",body:JSON.stringify({message:$("investigation-message").value.trim()})});
+    $("investigation-answer").classList.remove("hidden");
+    $("investigation-answer").innerHTML=`<div class="eyebrow">${esc(result.agent)} · ${esc(result.retrieval)}</div><p style="white-space:pre-wrap">${esc(result.answer)}</p>`;
+    $("investigation-status").textContent="Response generated. Verify evidence and use human review.";
+  }catch(error){
+    $("investigation-status").textContent=error.message;
+    $("investigation-answer").classList.remove("hidden");
+    $("investigation-answer").textContent=error.message;
+  }finally{button.disabled=false;button.textContent="Ask investigation agent →";}
 });
 $("zero-btn").addEventListener("click",()=>document.querySelectorAll("#feature-fields input").forEach(input=>input.value="0"));
 $("refresh-btn").addEventListener("click",refresh);
