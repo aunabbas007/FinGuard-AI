@@ -46,6 +46,15 @@
       <div class="panel-head table-head"><div><div class="eyebrow">AUDIT TRAIL</div><h2>Recent transactions</h2><p>Every submitted assessment is saved to the local database.</p></div><button class="secondary-btn" id="refresh-btn">↻ Refresh</button></div>
       <div class="table-wrap"><table><thead><tr><th>REFERENCE</th><th>AMOUNT</th><th>RISK SCORE</th><th>RISK LEVEL</th><th>DECISION</th><th>TIME</th></tr></thead><tbody id="transactions-body"><tr><td colspan="6" class="empty">No assessments yet. Score your first transaction above.</td></tr></tbody></table></div>
     </section>
+    <section class="panel" id="investigation">
+      <div class="panel-head"><div><div class="eyebrow">LANGCHAIN · RETRIEVAL-AUGMENTED INVESTIGATION</div><h2>AI investigation assistant</h2><p>Ask about fraud patterns or a saved assessment. Include its numeric database ID to inspect a specific transaction.</p></div><span class="step-tag">02 / INVESTIGATE</span></div>
+      <form id="investigation-form">
+        <label for="investigation-message">Investigation question</label>
+        <textarea id="investigation-message" rows="3" maxlength="4000" required placeholder="Example: Explain the indicators I should review for a rapid sequence of transfers."></textarea>
+        <div class="form-actions"><span id="investigation-status" class="form-message">Answers are grounded in retrieved guidance and available transaction records.</span><button class="primary-btn" id="investigation-submit" type="submit">Ask investigation agent →</button></div>
+      </form>
+      <div id="investigation-answer" class="result hidden" aria-live="polite"></div>
+    </section>
     <footer>FINGUARD AI <span>•</span> Synthetic fraud analytics demo <span>•</span> Human review required</footer>
   </main>
 </div>
