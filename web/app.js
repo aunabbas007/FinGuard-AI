@@ -53,6 +53,22 @@ $("score-form").addEventListener("submit",async event=>{
   }catch(error){$("form-message").textContent=error.message;}
   finally{$("score-btn").disabled=false;$("score-btn").innerHTML='Run fraud assessment <span>→</span>';}
 });
+$("demo-btn").addEventListener("click",async()=>{
+  $("form-message").textContent="Loading a random synthetic transaction…";
+  try{
+    const sample=await api("/api/v1/demo/sample");
+    const form=document.getElementById("score-form");
+    for(const [key,value] of Object.entries(sample.transaction)){
+      const input=form.elements.namedItem(key);
+      if(input) input.value=value;
+    }
+    featureNames.forEach((name,i)=>{
+      const input=document.querySelector(`#feature-fields input[name="feature_${i}"]`);
+      if(input) input.value=sample.features[name];
+    });
+    $("form-message").textContent=sample.dataset_notice;
+  }catch(error){$("form-message").textContent=error.message;}
+});
 $("zero-btn").addEventListener("click",()=>document.querySelectorAll("#feature-fields input").forEach(input=>input.value="0"));
 $("refresh-btn").addEventListener("click",refresh);
 loadSchema();refresh();
