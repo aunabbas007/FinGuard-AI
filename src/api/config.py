@@ -7,7 +7,7 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 class Settings(BaseSettings):
     app_name: str = "FinGuard AI"
     environment: str = "development"
-    database_url: str = f"sqlite:///{(ROOT_DIR / 'data' / 'finguard.db').as_posix()}"
+    database_url: str = "sqlite:///./finguard.db"
     model_path: Path = ROOT_DIR / "models" / "fraud_detection_model.joblib"
     threshold_path: Path = ROOT_DIR / "models" / "thresholds.json"
     cors_origins: str = "http://localhost:8000,http://127.0.0.1:8000"
