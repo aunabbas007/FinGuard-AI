@@ -1,11 +1,14 @@
 import numpy as np
+import pandas as pd
 import pytest
+from collections import deque
 
 from src.models.evaluate_models import (
     choose_f1_threshold,
     chronological_indices,
     threshold_options,
 )
+from src.graph.build_graph_features import GraphFeatureBuilder
 
 
 def test_chronological_indices_use_expected_boundaries():
@@ -37,3 +40,13 @@ def test_recall_operating_points_are_validation_only_candidates():
     assert options["0.5"]["recall"] >= 0.5
     assert options["0.9"] is not None
     assert options["0.9"]["recall"] >= 0.9
+
+
+def test_graph_history_keeps_event_exactly_at_window_cutoff():
+    cutoff = pd.Timestamp("2026-01-02 00:00:00")
+    history = deque([
+        (cutoff - pd.Timedelta(seconds=1), "old", 10.0),
+        (cutoff, "boundary", 20.0),
+    ])
+    GraphFeatureBuilder.remove_expired(history, cutoff)
+    assert list(history) == [(cutoff, "boundary", 20.0)]
