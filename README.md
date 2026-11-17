@@ -9,7 +9,8 @@ FinGuard AI is an educational portfolio project. It does not connect to banks, i
 - Baseline and graph-enhanced fraud-model evaluation with chronological train/validation/test splits.
 - FastAPI service with health, model-schema, synthetic-demo, transaction scoring, and transaction-history endpoints.
 - SQLite persistence by default; PostgreSQL can be configured through DATABASE_URL.
-- Browser dashboard with one-click synthetic sample loading, risk assessment, and recent transaction history.
+- Browser dashboard with one-click synthetic sample loading and automatic fraud assessment, risk results, and recent transaction history.
+- LangChain investigation agent with Groq chat model, tool-based transaction lookup, and retrieval-augmented fraud guidance (TF-IDF over the curated local knowledge base).
 - Docker image builds the synthetic dataset and baseline model itself; no model binary needs to be committed.
 - Docker Compose and Render Blueprint deployment configuration.
 
@@ -47,14 +48,24 @@ Open http://localhost:8000. The named Docker volume stores the SQLite database. 
 - GET /api/v1/transactions — paginated assessment history.
 - GET /api/v1/transactions?flagged_only=true — flagged assessments only.
 - GET /api/v1/transactions/{id} — retrieve one saved assessment.
+- POST /api/v1/investigation/chat — ask the LangChain investigation agent a question; include a numeric transaction database ID in the message to let its lookup tool inspect a saved assessment.
 
-The scoring API deliberately requires the model's exact numeric feature schema. Raw transaction metadata alone is not enough to recreate historical velocity and account-network features. The dashboard's demo button loads a known-aligned synthetic feature row so the full assessment flow can be tried without manually constructing model features.
+The scoring API deliberately requires the model's exact numeric feature schema. Raw transaction metadata alone is not enough to recreate historical velocity and account-network features. The dashboard's demo button loads a known-aligned synthetic feature row and automatically submits it to the scoring endpoint. The investigation assistant retrieves relevant fraud guidance and can look up saved transactions by database ID. It is an analyst-support feature, not an autonomous fraud decision system.
 
 ## Tests
 ```powershell
 pytest -q
 ```
 GitHub Actions runs the tests and builds the Docker image on pull requests and feature-branch pushes.
+
+## AI investigation assistant configuration
+
+The agent uses LangChain with Groq. Add these environment variables to the Render service (or local `.env`) to enable live LLM responses:
+
+- `GROQ_API_KEY` — API key from your Groq account. Keep it secret; never commit it to Git.
+- `GROQ_MODEL` — optional; defaults to `llama-3.3-70b-versatile`.
+
+Without `GROQ_API_KEY`, the dashboard and fraud-scoring API continue to work, while the investigation endpoint returns HTTP 503 with a configuration message. Retrieval uses TF-IDF over the curated fraud guidance in `data/knowledge` and is performed before the LLM synthesizes an answer. The agent has tools for knowledge retrieval and lookup of saved transaction records.
 
 ## Deployment (Render)
 The repository includes render.yaml. After merging the application branch into main, connect the GitHub repository to Render and create a Blueprint deployment from that file. Render builds the Docker image and runs the service health check at /health.
@@ -66,4 +77,6 @@ The included free Render configuration uses SQLite on an ephemeral filesystem. I
 - Model output is a ranking score, not a calibrated probability.
 - Threshold-based flags are investigation suggestions only; human review is required.
 - The demo transaction button samples synthetic records and is not a raw-transaction feature-engineering service.
+- The investigation agent depends on a configured Groq API key; without it, LLM responses are unavailable.
+- Retrieval is a small curated knowledge-base prototype, not a production fraud-policy corpus or a vector database.
 - Authentication, role-based access control, audit-grade event logging, production monitoring, migrations, and security review are not implemented. Do not expose sensitive or real customer data.
