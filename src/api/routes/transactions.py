@@ -16,8 +16,9 @@ def score_transaction(payload: TransactionCreate, db: Session = Depends(get_db))
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except FeatureValidationError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    item = Transaction(**payload.model_dump(exclude={"features"}),
-                       features=payload.features, **result)
+    # Feature importance is model-level metadata, not a per-transaction SHAP explanation.
+    result.pop("explanation", None)
+    item = Transaction(**payload.model_dump(exclude={"features"}), features=payload.features, **result)
     db.add(item)
     db.commit()
     db.refresh(item)
