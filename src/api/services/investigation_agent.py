@@ -38,31 +38,66 @@ def _build_agent(api_key: str, model_name: str):
         return retrieve_knowledge(query)
 
     @tool
-    def lookup_transaction(transaction_id: int) -> str:
-        """Retrieve a saved FinGuard assessment by its numeric database transaction ID."""
+    def lookup_recent_transactions(limit: int = 5) -> str:
+        """Retrieve the most recent saved transaction assessments. Use this whenever the user asks about the latest, recent, or current transaction or asks a general question about recent activity."""
+        safe_limit = max(1, min(int(limit), 10))
         with SessionLocal() as db:
-            item = db.get(Transaction, transaction_id)
+            items = db.scalars(
+                select(Transaction).order_by(Transaction.created_at.desc(), Transaction.id.desc()).limit(safe_limit)
+            ).all()
+            if not items:
+                return "There are no recent transaction assessments available to review."
+            return "\\n\\n".join(
+                f"Transaction reference: {item.external_id or 'Not provided'}; assessment ID: {item.id}; "
+                f"amount: {item.currency} {item.amount}; channel: {item.channel}; "
+                f"risk score: {item.risk_score}; risk level: {item.risk_level}; "
+                f"flagged for review: {item.is_flagged}; model probability: {item.model_probability}; "
+                f"recommendation: {item.recommendation}; assessed at: {item.created_at}"
+                for item in items
+            )
+
+    @tool
+    def lookup_transaction(identifier: str) -> str:
+        """Find a saved assessment by its external transaction reference (such as TXN006716) or numeric assessment ID."""
+        value = identifier.strip()
+        with SessionLocal() as db:
+            item = None
+            if value.isdigit():
+                item = db.get(Transaction, int(value))
             if item is None:
-                return f"No saved transaction exists with database ID {transaction_id}."
+                item = db.scalar(
+                    select(Transaction).where(Transaction.external_id == value).order_by(Transaction.created_at.desc())
+                )
+            if item is None:
+                return (
+                    f"No assessment matching '{value}' was found in the recent transaction records. "
+                    "Do not mention databases, SQLite, persistence, or internal storage to the user. "
+                    "Offer to review the latest assessed transaction or ask for the exact reference."
+                )
             return (
-                f"Database ID: {item.id}; reference: {item.external_id}; amount: {item.currency} {item.amount}; "
-                f"channel: {item.channel}; sender: {item.sender_account}; receiver: {item.receiver_account}; "
-                f"risk score: {item.risk_score}; risk level: {item.risk_level}; flagged: {item.is_flagged}; "
-                f"model probability: {item.model_probability}; recommendation: {item.recommendation}; "
-                f"model: {item.model_name}; created: {item.created_at}; feature values: {item.features}"
+                f"Transaction reference: {item.external_id or 'Not provided'}; assessment ID: {item.id}; "
+                f"amount: {item.currency} {item.amount}; channel: {item.channel}; "
+                f"risk score: {item.risk_score}; risk level: {item.risk_level}; "
+                f"flagged for review: {item.is_flagged}; model probability: {item.model_probability}; "
+                f"recommendation: {item.recommendation}; model: {item.model_name}; "
+                f"assessed at: {item.created_at}; feature values: {item.features}"
             )
 
     return create_agent(
         model=llm,
-        tools=[search_fraud_guidance, lookup_transaction],
+        tools=[search_fraud_guidance, lookup_recent_transactions, lookup_transaction],
         system_prompt=(
-            "You are FinGuard AI's fraud investigation assistant. You are an analyst support tool, not an autonomous decision-maker. "
-            "Use search_fraud_guidance for relevant fraud patterns. If the user supplies a numeric saved transaction database ID, "
-            "use lookup_transaction before discussing that record. Ground factual claims in retrieved tool results. "
-            "If evidence is missing, say so; never invent transaction details, claim a fraud is proven, or claim a payment was blocked. "
-            "Separate observed facts, model output, possible interpretation, uncertainty, and suggested human-review steps. "
+            "You are FinGuard AI's fraud investigation assistant. Speak directly to the user in clear, concise language; "
+            "do not expose internal implementation details such as SQLite, database tables, storage, persistence, or tool names. "
+            "For questions about the latest, recent, current, or general transaction activity, ALWAYS call lookup_recent_transactions first. "
+            "For a supplied transaction reference such as TXN006716, call lookup_transaction; it supports both external references and numeric assessment IDs. "
+            "Use search_fraud_guidance when relevant fraud-pattern context is needed. Ground transaction-specific claims only in returned transaction records. "
+            "If a reference cannot be matched, do not say the user failed to save it or reveal internal storage details; explain simply that the reference could not be matched "
+            "and offer to assess the latest available transaction or ask for the exact reference. "
+            "When a recent transaction is available, answer the question directly using its amount, risk score, risk level, flagged status and recommendation. "
+            "Separate observed facts from possible interpretations. Never invent facts, claim fraud is proven, or claim a payment was blocked. "
             "The underlying model uses synthetic training data; scores are not calibrated real-world probabilities. "
-            "Never request credentials, card numbers, passwords, OTPs or other sensitive authentication data."
+            "Never request credentials, full card numbers, passwords, OTPs or other sensitive authentication data."
         )
     )
 
