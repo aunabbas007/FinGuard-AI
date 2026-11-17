@@ -1,92 +1,69 @@
 # FinGuard AI
 
-**AI-powered synthetic financial fraud detection and investigation platform.**
+**Synthetic-data fraud detection and investigation demo with a FastAPI backend and browser dashboard.**
 
-FinGuard AI is an educational, portfolio-grade project that combines supervised fraud classification, temporal transaction features, account-network analytics, and explainable risk scoring. The project uses synthetic data only; it does not connect to banks, initiate payments, freeze accounts, or make real financial decisions.
+FinGuard AI is an educational portfolio project. It does not connect to banks, initiate payments, freeze accounts, or make real financial decisions. Model scores are not calibrated real-world probabilities and must not be used to approve, reject, or block financial activity.
 
-## Current implementation
+## Features
+- Reproducible synthetic dataset generation (10,000 transactions).
+- Baseline and graph-enhanced fraud-model evaluation with chronological train/validation/test splits.
+- FastAPI service with health, model-schema, synthetic-demo, transaction scoring, and transaction-history endpoints.
+- SQLite persistence by default; PostgreSQL can be configured through DATABASE_URL.
+- Browser dashboard with one-click synthetic sample loading, risk assessment, and recent transaction history.
+- Docker image builds the synthetic dataset and baseline model itself; no model binary needs to be committed.
+- Docker Compose and Render Blueprint deployment configuration.
 
-- Deterministic synthetic customer, account, and transaction generation.
-- Four injected fraud scenarios: account takeover, unusual large transfer, structuring-like activity, and unusual cross-border activity.
-- Feature engineering with customer, account, transaction, and historical velocity attributes.
-- Chronological train/validation/test model evaluation.
-- Baseline model comparison (Logistic Regression, Random Forest, XGBoost).
-- Account network metrics, reciprocal relationships, community detection, and community profiling.
-- Per-transaction historical graph features using 24-hour and 30-day windows.
-- Graph-enhanced Random Forest training and validation-based threshold selection.
-- A shared evaluation runner comparing baseline and graph-enhanced Random Forests on exactly the same chronological transaction IDs.
-- Validation-only threshold selection, test-set reporting, and graph feature-importance export.
-- SHAP-based model explanation experiments and a baseline risk-scoring module.
+## Run locally (Windows PowerShell)
 
-## Repository structure
-
-```text
-FinGuard-AI/
-├── data/
-│   ├── raw/                 # Generated locally; intentionally gitignored
-│   └── processed/            # Generated locally; intentionally gitignored
-├── models/                  # Model binaries generated locally; gitignored
-├── src/
-│   ├── data/
-│   ├── features/
-│   ├── fraud/
-│   ├── graph/
-│   └── models/
-├── tests/                   # Automated ML evaluation tests
-├── docs/
-├── requirements.txt
-└── README.md
-```
-
-## Setup (Windows PowerShell)
-
-Use Python 3.11.
-
+Use Python 3.11:
 ```powershell
 py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 pip install -r requirements.txt
-```
-
-## Reproduce the ML pipeline
-
-Run these commands from the repository root, in order:
-
-```powershell
 python src/data/generate_transactions_v2.py
 python src/features/build_features.py
 python src/graph/build_graph_features.py
 python src/features/merge_graph_features.py
 python src/models/evaluate_models.py
-python src/graph/account_network.py
-python src/fraud/shap_explainer.py
-pytest -q
+uvicorn src.api.main:app --reload
 ```
 
-The shared evaluator trains baseline and graph-enhanced Random Forest models using identical timestamp-sorted transaction IDs and 70/15/15 train/validation/test partitions. It chooses each model's decision threshold using validation data only, evaluates the held-out test partition for reporting, and writes:
+Open http://127.0.0.1:8000 for the dashboard, http://127.0.0.1:8000/docs for API docs, and http://127.0.0.1:8000/health for service health.
 
-- `models/fraud_detection_model.joblib`
-- `models/fraud_detection_graph_model.joblib`
-- `models/ml_evaluation.json`
-- `data/processed/v2/graph_feature_importance.csv`
+The ML commands generate models/fraud_detection_model.joblib and models/thresholds.json. These are local generated artifacts and are not committed to Git. The Docker build runs the deterministic synthetic-data and baseline-model pipeline automatically.
 
-Generated data and model artifacts are not committed. Run the pipeline to recreate them. The baseline risk scorer expects `models/fraud_detection_model.joblib` and `models/thresholds.json`; the shared evaluator currently saves the baseline model and a combined evaluation report, so risk-scorer configuration integration remains a follow-up ML task.
+## Docker
+```powershell
+docker compose up --build
+```
+Open http://localhost:8000. The named Docker volume stores the SQLite database. The image trains its synthetic baseline model during build.
 
-## Evaluation notes
+## API
+- GET /health — API and database health.
+- GET /api/v1/model/schema — exact feature names and validation threshold.
+- GET /api/v1/demo/sample — one randomly selected synthetic transaction and its aligned model feature vector.
+- POST /api/v1/transactions/score — score and persist a transaction using a complete feature vector.
+- GET /api/v1/transactions — paginated assessment history.
+- GET /api/v1/transactions?flagged_only=true — flagged assessments only.
+- GET /api/v1/transactions/{id} — retrieve one saved assessment.
 
-- Fraud is a minority class. Prefer PR-AUC, precision, recall, F1, and confusion matrices over accuracy alone.
-- Threshold selection is performed on validation data; the test split is reserved for final evaluation.
-- Both model variants must use identical transaction IDs and chronological boundaries for a fair comparison.
-- Do not tune thresholds, select features, or make model decisions based on test-set results.
-- The synthetic labels are generated by injected rules. Strong performance on this dataset does not demonstrate real-world bank fraud performance.
-- Model outputs are ranking scores, not calibrated real-world probabilities.
-- A fraud alert is a recommendation for human review, not an automatic adverse action.
+The scoring API deliberately requires the model's exact numeric feature schema. Raw transaction metadata alone is not enough to recreate historical velocity and account-network features. The dashboard's demo button loads a known-aligned synthetic feature row so the full assessment flow can be tried without manually constructing model features.
 
-## Data and security
+## Tests
+```powershell
+pytest -q
+```
+GitHub Actions runs the tests and builds the Docker image on pull requests and feature-branch pushes.
 
-The `data/` and generated model binaries are excluded from Git to keep the repository lightweight and avoid committing derived artifacts. Never commit credentials, API keys, customer information, or real financial records. Use synthetic or properly anonymized data only.
+## Deployment (Render)
+The repository includes render.yaml. After merging the application branch into main, connect the GitHub repository to Render and create a Blueprint deployment from that file. Render builds the Docker image and runs the service health check at /health.
 
-## Project status
+The included free Render configuration uses SQLite on an ephemeral filesystem. It is suitable for a portfolio demo, but transaction history may be lost when the service restarts or redeploys. For durable history, attach a persistent disk or configure a managed PostgreSQL database; those options may incur charges. Do not enable paid resources without reviewing their price first.
 
-The current repository contains the synthetic data and ML/graph analytics foundation, with shared fair-evaluation tooling being expanded. API service, persistent database, financial-policy RAG, investigation agent, dashboard, deployment automation, and comprehensive integration tests remain planned work and must not be considered implemented until present in the repository.
+## Important limitations
+- Synthetic training data only; no real banking dataset or bank integration.
+- Model output is a ranking score, not a calibrated probability.
+- Threshold-based flags are investigation suggestions only; human review is required.
+- The demo transaction button samples synthetic records and is not a raw-transaction feature-engineering service.
+- Authentication, role-based access control, audit-grade event logging, production monitoring, migrations, and security review are not implemented. Do not expose sensitive or real customer data.
